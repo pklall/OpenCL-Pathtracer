@@ -245,7 +245,7 @@ __kernel void pathtrace(
 				// percentage of reflected light (based on specularity)
 				float brdf = clamp(pow(dot(next.direction, expectedDir) + 0.1, spec), 0.0f, 1.0f);
 				// brdf = 0.3f;
-				pathColor *= (float4) mat.color * brdf * dot(next.direction, ray.direction);
+				pathColor *= (float4) mat.color * brdf * dot(next.direction, iInfo.normal);
 				ray = next;
 			}
 		}
