@@ -128,7 +128,7 @@ Ray getNextRay(IInfo iInfo, Rand* r) {
 	// normalize the random numbers
 	float rnd1 = nextRand(r);
 	float rnd2 = nextRand(r);
-	// ( we must transform by acos so we don't get clustering at the poles)
+	// we must transform by acos so we don't get clustering at the poles
 	float u = 2 * rnd1 - 1;
 	float v = 2 * M_PI * rnd2;
 	float x = sqrt(1 - u * u) * cos(v);
@@ -173,7 +173,7 @@ __kernel void pathtrace(
 	// output color buffer
 	__global float4 * color) {
 
-	float minPathContrib = 0.001;
+	float minPathContrib = 0.00001;
 
 	int gid = get_global_id(0);
 
@@ -185,10 +185,10 @@ __kernel void pathtrace(
 	float4 pathColor = (float4) (1,1,1,0);
 	// the number of paths found
 	int numPaths = 0;
-	const int maxPathLength = 20;
+	const int maxPathLength = 10;
 	int curPathLength = 0;
 	Ray ray = genray(cam, gid, &rand);
-	for(int numRayCasts = 200; numRayCasts > 0; numRayCasts--) {
+	for(int numRayCasts = 30; numRayCasts > 0; numRayCasts--) {
 		curPathLength++;
 		IInfo iInfo;
 		iInfo.distance = MAXFLOAT;
@@ -243,9 +243,9 @@ __kernel void pathtrace(
 					next.direction = expectedDir;
 				}
 				// percentage of reflected light (based on specularity)
-				float brdf = clamp(pow(dot(next.direction, expectedDir) + 0.1, spec), 0, 1);
+				float brdf = clamp(pow(dot(next.direction, expectedDir) + 0.1, spec), 0.0f, 1.0f);
 				// brdf = 0.3f;
-				pathColor *= (float4) mat.color * brdf;
+				pathColor *= (float4) mat.color * brdf * dot(next.direction, ray.direction);
 				ray = next;
 			}
 		}
@@ -277,10 +277,13 @@ __kernel void initColorBuffer(__global float4 * color) {
 // convert the float color buffer into a uchar image buffer we can use
 // max defines the maximum color value used for normalization 
 __kernel void getImage(
-	__global const float4 * color, const float max, __global const uchar4 * output) {
+	__global const float4 * color, __global const uchar4 * output) {
 	int gid = get_global_id(0);
-	output[gid].x = (uchar) (clamp(color[gid].x / max, 0, 1) * 255);
-	output[gid].y = (uchar) (clamp(color[gid].y / max, 0, 1) * 255);
-	output[gid].z = (uchar) (clamp(color[gid].z / max, 0, 1) * 255);
+	// crude tone mapping
+	float3 c = (color[gid] * 100.0f).xyz;
+	float3 tone = c / (c + (float3) (1, 1, 1));
+	output[gid].x = (uchar) (clamp(tone.x, 0.0f, 1.0f) * 255);
+	output[gid].y = (uchar) (clamp(tone.y, 0.0f, 1.0f) * 255);
+	output[gid].z = (uchar) (clamp(tone.z, 0.0f, 1.0f) * 255);
 	output[gid].w = 255;
 }

@@ -69,8 +69,8 @@ class CLPathTracer():
 		# 6 = frosted glass surface
 		# 7 = clear glass surface
 		materials_numpy = self.materialBuffer([\
-				(20.0, 20.0, 20.0, 1.0, 0, 0, 0, 1), \
-				(5.0, 5.0, 0.0, 1.0, 1, 0, 0, 1), \
+				(1.0, 1.0, 1.0, 1.0, 0, 0, 0, 1), \
+				(0.7, 0.7, 0.2, 1.0, 0, 0, 0, 1), \
 				(1.0, 0.5, 0.5, 1.0, 1, 2, 0, 0), \
 				(0.5, 1.0, 0.5, 1.0, 1, 2.0, 0, 0), \
 				(0.5, 0.5, 1.0, 1.0, 1, 2, 0, 0), \
@@ -127,15 +127,13 @@ class CLPathTracer():
 
 		(camera, scene_size, scene, materials, material_index) = self.sceneA()
 
-		numIterations = 100
+		numIterations = 200
 		for i in range(numIterations):
 			print("Pass: " + str(i) + " of " + str(numIterations))
 			# NVidia cards supposedly don't refresh the display while a kernel is
 			# operating, so we sleep to give the above print statement time to 
-			# display
+			# display and not lock the display of my single-gpu machine
 			time.sleep(0.01)
-			# random_cl = cl.Buffer(self.ctx, mf.READ_WRITE | mf.COPY_HOST_PTR,\
-			#		hostbuf = np.random.bytes(w * h * 2 * 4))
 			self.prog.pathtrace(self.queue, ((w * h), ), None,\
 					random_cl,\
 					camera,\
@@ -146,7 +144,7 @@ class CLPathTracer():
 					float_image_cl).wait()
 		output_numpy = np.empty((w * h * 4,), dtype=np.uint8)
 		output_cl = cl.Buffer(self.ctx, mf.WRITE_ONLY, output_numpy.nbytes)
-		self.prog.getImage(self.queue, (w * h,), None, float_image_cl, struct.pack("f", numIterations), output_cl);
+		self.prog.getImage(self.queue, (w * h,), None, float_image_cl, output_cl);
 
 		# read output
 		cl.enqueue_read_buffer(self.queue, output_cl, output_numpy).wait()
