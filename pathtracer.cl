@@ -173,7 +173,7 @@ __kernel void pathtrace(
 	// output color buffer
 	__global float4 * color) {
 
-	float minPathContrib = 0.00001;
+	float minPathContrib = 0.000001;
 
 	int gid = get_global_id(0);
 
@@ -188,7 +188,7 @@ __kernel void pathtrace(
 	const int maxPathLength = 10;
 	int curPathLength = 0;
 	Ray ray = genray(cam, gid, &rand);
-	for(int numRayCasts = 30; numRayCasts > 0; numRayCasts--) {
+	for(int numRayCasts = 100; numRayCasts > 0; numRayCasts--) {
 		curPathLength++;
 		IInfo iInfo;
 		iInfo.distance = MAXFLOAT;
@@ -218,6 +218,7 @@ __kernel void pathtrace(
 				}
 				float4 expectedDir;
 				float spec;
+				float lambert = 1.0;
 				// use alpha as probability of going through the object
 				if(nextRand(&rand) > mat.color.w) {
 					// if it is refracted
@@ -236,6 +237,7 @@ __kernel void pathtrace(
 					// if it is reflected
 					expectedDir = normalize(reflect(ray.direction, iInfo.normal));
 					spec = mat.spec;
+					lambert = dot(next.direction, iInfo.normal);
 				}
 				// ugly hack:
 				// if the object is extremely specular, cast rays where they should go only
@@ -244,8 +246,7 @@ __kernel void pathtrace(
 				}
 				// percentage of reflected light (based on specularity)
 				float brdf = clamp(pow(dot(next.direction, expectedDir) + 0.1, spec), 0.0f, 1.0f);
-				// brdf = 0.3f;
-				pathColor *= (float4) mat.color * brdf * dot(next.direction, iInfo.normal);
+				pathColor *= (float4) mat.color * brdf * lambert;
 				ray = next;
 			}
 		}
@@ -280,7 +281,7 @@ __kernel void getImage(
 	__global const float4 * color, __global const uchar4 * output) {
 	int gid = get_global_id(0);
 	// crude tone mapping
-	float3 c = (color[gid] * 100.0f).xyz;
+	float3 c = (color[gid]).xyz;
 	float3 tone = c / (c + (float3) (1, 1, 1));
 	output[gid].x = (uchar) (clamp(tone.x, 0.0f, 1.0f) * 255);
 	output[gid].y = (uchar) (clamp(tone.y, 0.0f, 1.0f) * 255);
